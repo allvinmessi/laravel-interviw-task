@@ -19,6 +19,9 @@ Route::prefix('products')->group(function () {
     Route::get('/low-stock', [ProductController::class, 'lowStock'])->name('api.products.low-stock');
     Route::get('/', [ProductController::class, 'index'])->name('api.products.index');
     Route::post('/', [ProductController::class, 'store'])->name('api.products.store');
+    Route::get('/{product}', [ProductController::class, 'show'])->name('api.products.show');
+    Route::put('/{product}', [ProductController::class, 'update'])->name('api.products.update');
+    Route::patch('/{product}', [ProductController::class, 'update'])->name('api.products.patch');
 });
 
 // Orders API

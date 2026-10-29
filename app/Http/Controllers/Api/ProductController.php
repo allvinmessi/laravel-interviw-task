@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Services\InventoryService;
@@ -26,6 +27,26 @@ class ProductController extends Controller
         return (new ProductResource($product))
             ->response()
             ->setStatusCode(201);
+    }
+
+    /**
+     * Update an existing product (stock, GST/tax, price, code, name).
+     */
+    public function update(UpdateProductRequest $request, Product $product): JsonResponse
+    {
+        $product->update($request->validated());
+
+        return (new ProductResource($product->fresh()))
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    /**
+     * Display a specific product.
+     */
+    public function show(Product $product): JsonResponse
+    {
+        return (new ProductResource($product))->response();
     }
 
     /**

@@ -34,11 +34,14 @@
                     </div>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <button @click="openNewProductModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-circle-plus"></i> + Add Product to Catalog
+            <div class="flex items-center gap-2">
+                <button @click="showManageCatalogModal = true" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition border border-slate-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-boxes-stacked"></i> Manage Catalog
                 </button>
-                <button @click="showHistoryModal = true" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition border border-slate-300 flex items-center gap-2">
+                <button @click="openNewProductModal()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-plus"></i> + Add Product
+                </button>
+                <button @click="showHistoryModal = true" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition border border-slate-300 flex items-center gap-1.5">
                     <i class="fa-solid fa-clock-rotate-left"></i> Order History
                 </button>
                 <div class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full flex items-center gap-1.5 font-medium">
@@ -128,9 +131,14 @@
                                                     <option :value="p.id" :disabled="p.stock <= 0" x-text="`${p.name} (Stock: ${p.stock}) - ₹${p.price}`"></option>
                                                 </template>
                                             </select>
-                                            <div x-show="line.stock !== null" class="text-[11px] text-slate-400 mt-0.5 flex gap-2">
-                                                <span>Code: <b class="font-mono text-slate-600" x-text="line.code"></b></span>
-                                                <span>Avail: <b :class="line.stock <= 5 ? 'text-amber-600' : 'text-slate-600'" x-text="line.stock"></b></span>
+                                            <div x-show="line.stock !== null" class="text-[11px] text-slate-400 mt-0.5 flex items-center justify-between">
+                                                <div class="flex gap-2">
+                                                    <span>Code: <b class="font-mono text-slate-600" x-text="line.code"></b></span>
+                                                    <span>Avail: <b :class="line.stock <= 5 ? 'text-amber-600' : 'text-slate-600'" x-text="line.stock"></b></span>
+                                                </div>
+                                                <button type="button" @click="openEditProductModal(line.product_id)" class="text-indigo-600 hover:text-indigo-800 font-semibold text-[11px] flex items-center gap-1 hover:underline">
+                                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                                </button>
                                             </div>
                                         </td>
                                         <!-- Qty input -->
@@ -274,7 +282,7 @@
 
                     <div class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
                         <template x-for="item in lowStockItems" :key="item.id">
-                            <div class="bg-white border border-amber-200 rounded-lg p-3 flex items-center justify-between shadow-2xs hover:border-amber-400 transition">
+                            <div @click="openEditProductModal(item.id)" class="bg-white border border-amber-200 rounded-lg p-3 flex items-center justify-between shadow-2xs hover:border-amber-400 hover:bg-amber-50/20 cursor-pointer transition" title="Click to update stock or details">
                                 <div>
                                     <div class="text-xs font-bold text-slate-800" x-text="item.name"></div>
                                     <div class="text-[11px] text-slate-400 font-mono" x-text="item.code"></div>
@@ -283,7 +291,7 @@
                                     <span class="inline-block px-2 py-0.5 rounded text-xs font-bold"
                                           :class="item.stock <= 2 ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-amber-100 text-amber-800 border border-amber-200'"
                                           x-text="`${item.stock} left`"></span>
-                                    <div class="text-[10px] text-slate-400 mt-0.5" x-text="'₹' + item.price"></div>
+                                    <div class="text-[10px] text-indigo-600 font-semibold mt-0.5 flex items-center justify-end gap-1"><i class="fa-solid fa-pen-to-square text-[9px]"></i> Edit</div>
                                 </div>
                             </div>
                         </template>
@@ -519,6 +527,148 @@
             </div>
         </div>
 
+        <!-- Manage Catalog Modal -->
+        <div x-show="showManageCatalogModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div @click.away="showManageCatalogModal = false" class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 border border-slate-100 max-h-[90vh] flex flex-col">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-stacked text-indigo-600"></i> Manage Catalog & Inventory
+                        </h3>
+                        <p class="text-xs text-slate-500">Update stock levels, unit prices, GST tax percentages, and product details</p>
+                    </div>
+                    <button @click="showManageCatalogModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Search Filter & Actions -->
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input 
+                            type="text" 
+                            x-model="catalogSearch" 
+                            placeholder="Search by product name or code (e.g. Toothpaste, BISC-001)..." 
+                            class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <button @click="openNewProductModal()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shrink-0">
+                        <i class="fa-solid fa-plus"></i> New Product
+                    </button>
+                </div>
+
+                <!-- Products Catalog Table -->
+                <div class="overflow-y-auto flex-1 border border-slate-200 rounded-xl">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600 uppercase tracking-wider sticky top-0">
+                            <tr>
+                                <th class="py-2.5 px-3">Product Name</th>
+                                <th class="py-2.5 px-3 font-mono">Code / SKU</th>
+                                <th class="py-2.5 px-3 text-right">Price (₹)</th>
+                                <th class="py-2.5 px-3 text-center">GST (%)</th>
+                                <th class="py-2.5 px-3 text-center">Stock</th>
+                                <th class="py-2.5 px-3 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <template x-for="p in filteredCatalog" :key="p.id">
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-2.5 px-3 font-medium text-slate-900" x-text="p.name"></td>
+                                    <td class="py-2.5 px-3 font-mono text-slate-500" x-text="p.code"></td>
+                                    <td class="py-2.5 px-3 text-right font-semibold text-slate-800" x-text="'₹' + Number(p.price).toFixed(2)"></td>
+                                    <td class="py-2.5 px-3 text-center font-mono text-slate-600" x-text="p.tax_percentage + '%'"></td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold"
+                                              :class="p.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'"
+                                              x-text="p.stock"></span>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-center">
+                                        <button @click="openEditProductModal(p.id)" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded text-xs transition flex items-center gap-1 mx-auto">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="filteredCatalog.length === 0">
+                                <td colspan="6" class="text-center py-8 text-slate-400">
+                                    No products found matching "<span x-text="catalogSearch"></span>".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+                    <span x-text="`Showing ${filteredCatalog.length} of ${catalog.length} product(s)`"></span>
+                    <button @click="showManageCatalogModal = false" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Product Modal -->
+        <div x-show="showEditProductModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div @click.away="showEditProductModal = false" class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-100">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-indigo-600"></i> Edit Product
+                        </h3>
+                        <p class="text-xs text-slate-500" x-text="`Update stock, GST, and pricing for ID #${editProduct.id}`"></p>
+                    </div>
+                    <button @click="showEditProductModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <form @submit.prevent="saveProductUpdate()" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Product Name <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="editProduct.name" required placeholder="e.g. Colgate Toothpaste" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Product Code (SKU) <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="editProduct.code" required placeholder="e.g. TOOTH-001" class="w-full px-3 py-2 text-sm uppercase font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <p class="text-[10px] text-slate-400 mt-0.5">Strict duplicate check enforced</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Stock on Hand <span class="text-red-500">*</span></label>
+                            <input type="number" min="0" x-model.number="editProduct.stock" required placeholder="e.g. 20" class="w-full px-3 py-2 text-sm font-semibold text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <p class="text-[10px] text-indigo-600 mt-0.5">Change to restock or adjust</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Price per Unit (₹) <span class="text-red-500">*</span></label>
+                            <input type="number" step="0.01" min="0.01" x-model.number="editProduct.price" required placeholder="e.g. 50.00" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">GST / Tax Percentage (%) <span class="text-red-500">*</span></label>
+                            <input type="number" step="0.01" min="0" max="100" x-model.number="editProduct.tax_percentage" required placeholder="e.g. 18.00" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Low-Stock Alert Threshold</label>
+                        <input type="number" min="0" x-model.number="editProduct.low_stock_threshold" placeholder="Leave empty for global default (5)" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <p class="text-[11px] text-slate-400 mt-1">Products below this count trigger the low-stock alert.</p>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                        <button type="button" @click="showEditProductModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 text-sm hover:bg-slate-50 transition">Cancel</button>
+                        <button type="submit" :disabled="isUpdatingProduct" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition flex items-center gap-1.5 disabled:opacity-50">
+                            <span x-show="!isUpdatingProduct"><i class="fa-solid fa-check mr-1"></i> Update Product</span>
+                            <span x-show="isUpdatingProduct"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Updating...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </div>
 
     <!-- Application Script -->
@@ -571,6 +721,28 @@
                     tax_percentage: 5,
                     stock: 15,
                     low_stock_threshold: null
+                },
+                showManageCatalogModal: false,
+                catalogSearch: '',
+                showEditProductModal: false,
+                isUpdatingProduct: false,
+                editProduct: {
+                    id: null,
+                    name: '',
+                    code: '',
+                    price: '',
+                    tax_percentage: '',
+                    stock: 0,
+                    low_stock_threshold: null
+                },
+
+                get filteredCatalog() {
+                    const q = (this.catalogSearch || '').toLowerCase().trim();
+                    if (!q) return this.catalog;
+                    return this.catalog.filter(p => 
+                        (p.name && p.name.toLowerCase().includes(q)) ||
+                        (p.code && p.code.toLowerCase().includes(q))
+                    );
                 },
 
                 async init() {
@@ -884,6 +1056,99 @@
                         alert('A network error occurred while saving the product: ' + (e.message || ''));
                     } finally {
                         this.isSavingProduct = false;
+                    }
+                },
+
+                openEditProductModal(productId) {
+                    const prod = this.catalog.find(p => p.id === Number(productId));
+                    if (!prod) {
+                        alert('Product not found in catalog.');
+                        return;
+                    }
+                    this.editProduct = {
+                        id: prod.id,
+                        name: prod.name,
+                        code: prod.code,
+                        price: prod.price,
+                        tax_percentage: prod.tax_percentage,
+                        stock: prod.stock,
+                        low_stock_threshold: prod.low_stock_threshold ?? ''
+                    };
+                    this.showEditProductModal = true;
+                },
+
+                async saveProductUpdate() {
+                    const name = (this.editProduct.name || '').trim();
+                    const code = (this.editProduct.code || '').trim().toUpperCase();
+                    const price = parseFloat(this.editProduct.price);
+                    const tax = parseFloat(this.editProduct.tax_percentage);
+                    const stock = parseInt(this.editProduct.stock, 10);
+                    const threshold = (this.editProduct.low_stock_threshold !== '' && this.editProduct.low_stock_threshold !== null && !isNaN(this.editProduct.low_stock_threshold))
+                        ? parseInt(this.editProduct.low_stock_threshold, 10) 
+                        : null;
+
+                    if (!name || !code || isNaN(price) || isNaN(tax) || isNaN(stock)) {
+                        alert('Please fill in all required fields (Name, Code, Price, GST/Tax, and Stock) with valid values.');
+                        return;
+                    }
+
+                    this.isUpdatingProduct = true;
+                    try {
+                        const payload = {
+                            name: name,
+                            code: code,
+                            price: price,
+                            tax_percentage: tax,
+                            stock: stock,
+                            low_stock_threshold: threshold
+                        };
+
+                        const res = await fetch(getApiUrl(`products/${this.editProduct.id}`), {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await res.json().catch(() => null);
+
+                        if (!res.ok) {
+                            let errorMsg = 'Failed to update product.';
+                            if (data && data.errors) {
+                                errorMsg = Object.values(data.errors).flat().join('\n');
+                            } else if (data && data.message) {
+                                errorMsg = data.message;
+                            } else {
+                                errorMsg = `Server responded with HTTP status ${res.status}`;
+                            }
+                            alert(`Duplicate check / Validation error:\n${errorMsg}`);
+                            return;
+                        }
+
+                        // Refresh catalog & low stock lists
+                        await this.loadCatalog();
+                        await this.loadLowStock();
+
+                        // Synchronize any active order line that has this product selected
+                        this.orderLines.forEach(line => {
+                            if (Number(line.product_id) === this.editProduct.id) {
+                                line.code = data.data.code;
+                                line.price = data.data.price;
+                                line.tax_percentage = data.data.tax_percentage;
+                                line.stock = data.data.stock;
+                            }
+                        });
+                        this.recalculateTotals();
+
+                        this.showEditProductModal = false;
+                        alert(`Product '${data.data.name}' updated successfully!\nStock: ${data.data.stock} | Price: ₹${data.data.price} | GST: ${data.data.tax_percentage}%`);
+
+                    } catch (e) {
+                        alert('Network error while updating product: ' + (e.message || ''));
+                    } finally {
+                        this.isUpdatingProduct = false;
                     }
                 }
             };
