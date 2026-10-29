@@ -16,7 +16,6 @@ A high-performance, concurrency-safe retail billing and inventory management app
 8. [Testing & Edge Cases](#testing--edge-cases)
 9. [UI Walkthrough (POS Screen & Wireframe Implementation)](#ui-walkthrough-pos-screen--wireframe-implementation)
 10. [Assumptions & Design Decisions](#assumptions--design-decisions)
-11. [Prompt Log](#prompt-log)
 
 ---
 
