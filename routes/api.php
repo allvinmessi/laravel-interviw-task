@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('products')->group(function () {
     Route::get('/low-stock', [ProductController::class, 'lowStock'])->name('api.products.low-stock');
     Route::get('/', [ProductController::class, 'index'])->name('api.products.index');
+    Route::post('/', [ProductController::class, 'store'])->name('api.products.store');
 });
 
 // Orders API

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CreateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Services\InventoryService;
@@ -14,6 +15,18 @@ class ProductController extends Controller
     public function __construct(
         protected InventoryService $inventoryService
     ) {}
+
+    /**
+     * Store a newly created product in the catalog.
+     */
+    public function store(CreateProductRequest $request): JsonResponse
+    {
+        $product = Product::create($request->validated());
+
+        return (new ProductResource($product))
+            ->response()
+            ->setStatusCode(201);
+    }
 
     /**
      * List all products in catalog.
