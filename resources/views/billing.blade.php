@@ -21,6 +21,42 @@
 <body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
 
     <div x-data="billingSystem()" x-init="init()" class="max-w-7xl mx-auto p-4 md:p-8">
+
+        <!-- Floating Toast Notification System (Replaces intrusive alerts) -->
+        <div class="fixed top-5 right-5 z-[9999] space-y-3 max-w-sm w-full pointer-events-none">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div 
+                    x-show="toast.visible" 
+                    x-transition:enter="transform ease-out duration-300 transition"
+                    x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-4"
+                    x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
+                    x-transition:leave="transition ease-in duration-200"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0"
+                    class="pointer-events-auto rounded-xl p-4 shadow-xl border flex items-start gap-3 backdrop-blur-xs transition-all"
+                    :class="{
+                        'bg-emerald-50/95 border-emerald-300 text-emerald-950 shadow-emerald-900/10': toast.type === 'success',
+                        'bg-red-50/95 border-red-300 text-red-950 shadow-red-900/10': toast.type === 'error',
+                        'bg-indigo-50/95 border-indigo-300 text-indigo-950 shadow-indigo-900/10': toast.type === 'info',
+                        'bg-amber-50/95 border-amber-300 text-amber-950 shadow-amber-900/10': toast.type === 'warning'
+                    }">
+                    <div class="text-base shrink-0 mt-0.5">
+                        <template x-if="toast.type === 'success'"><i class="fa-solid fa-circle-check text-emerald-600"></i></template>
+                        <template x-if="toast.type === 'error'"><i class="fa-solid fa-circle-xmark text-red-600"></i></template>
+                        <template x-if="toast.type === 'info'"><i class="fa-solid fa-circle-info text-indigo-600"></i></template>
+                        <template x-if="toast.type === 'warning'"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i></template>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-xs font-bold leading-tight" x-text="toast.title"></h4>
+                        <p class="text-xs mt-0.5 leading-relaxed whitespace-pre-line text-slate-700" x-text="toast.message"></p>
+                    </div>
+                    <button @click="removeToast(toast.id)" class="text-slate-400 hover:text-slate-600 text-xs shrink-0 p-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </template>
+        </div>
+
         <!-- Header -->
         <header class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -69,24 +105,35 @@
                                 <input 
                                     type="email" 
                                     x-model="customer.email" 
+                                    @input="orderErrors.customer_email = null"
                                     @input.debounce.400ms="lookupCustomer()" 
                                     placeholder="e.g. thomas@example.com"
-                                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                                    class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                    :class="orderErrors.customer_email ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
                                 <div x-show="isLookingUp" class="absolute right-3 top-2.5 text-slate-400 text-xs">
                                     <i class="fa-solid fa-spinner fa-spin"></i>
                                 </div>
                             </div>
-                            <p class="text-xs text-slate-400 mt-1">Existing customers will auto-fill name</p>
+                            <!-- Inline validation error message below field -->
+                            <p x-show="orderErrors.customer_email" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="orderErrors.customer_email"></span>
+                            </p>
+                            <p x-show="!orderErrors.customer_email" class="text-xs text-slate-400 mt-1">Existing customers will auto-fill name</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Customer Name <span class="text-red-500">*</span></label>
                             <input 
                                 type="text" 
                                 x-model="customer.name" 
+                                @input="orderErrors.customer_name = null"
                                 placeholder="auto-filled if email exists" 
-                                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
-                                :class="customerFound ? 'bg-indigo-50/50 border-indigo-200 text-indigo-950 font-medium' : ''">
-                            <span x-show="customerFound" class="text-xs text-indigo-600 font-medium mt-1 inline-block">
+                                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="orderErrors.customer_name ? 'border-red-500 bg-red-50/20' : (customerFound ? 'bg-indigo-50/50 border-indigo-200 text-indigo-950 font-medium' : 'border-slate-300')">
+                            <!-- Inline validation error message below field -->
+                            <p x-show="orderErrors.customer_name" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="orderErrors.customer_name"></span>
+                            </p>
+                            <span x-show="customerFound && !orderErrors.customer_name" class="text-xs text-indigo-600 font-medium mt-1 inline-block">
                                 <i class="fa-solid fa-circle-check"></i> Found existing customer
                             </span>
                         </div>
@@ -483,30 +530,62 @@
                 </div>
 
                 <form @submit.prevent="saveNewProduct()" class="space-y-4">
+                    <!-- General error banner -->
+                    <div x-show="newProductErrors.general" class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-2">
+                        <i class="fa-solid fa-circle-exclamation text-red-500"></i>
+                        <span x-text="newProductErrors.general"></span>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Product Name <span class="text-red-500">*</span></label>
-                        <input type="text" x-model="newProduct.name" required placeholder="e.g. Britannia Good Day" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="text" x-model="newProduct.name" @input="newProductErrors.name = null" required placeholder="e.g. Britannia Good Day" 
+                            class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                            :class="newProductErrors.name ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                        <p x-show="newProductErrors.name" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                            <i class="fa-solid fa-circle-exclamation"></i> <span x-text="newProductErrors.name"></span>
+                        </p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Product Code (SKU) <span class="text-red-500">*</span></label>
-                            <input type="text" x-model="newProduct.code" required placeholder="e.g. BISC-002" class="w-full px-3 py-2 text-sm uppercase font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <input type="text" x-model="newProduct.code" @input="newProductErrors.code = null" required placeholder="e.g. BISC-002" 
+                                class="w-full px-3 py-2 text-sm uppercase font-mono border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="newProductErrors.code ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <p x-show="newProductErrors.code" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="newProductErrors.code"></span>
+                            </p>
+                            <p x-show="!newProductErrors.code" class="text-[10px] text-slate-400 mt-0.5">Strict duplicate check enforced</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Stock on Hand <span class="text-red-500">*</span></label>
-                            <input type="number" min="0" x-model.number="newProduct.stock" required placeholder="e.g. 25" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <input type="number" min="0" x-model.number="newProduct.stock" @input="newProductErrors.stock = null" required placeholder="e.g. 25" 
+                                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="newProductErrors.stock ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <p x-show="newProductErrors.stock" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="newProductErrors.stock"></span>
+                            </p>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Price per Unit (₹) <span class="text-red-500">*</span></label>
-                            <input type="number" step="0.01" min="0.01" x-model.number="newProduct.price" required placeholder="e.g. 35.00" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <input type="number" step="0.01" min="0.01" x-model.number="newProduct.price" @input="newProductErrors.price = null" required placeholder="e.g. 35.00" 
+                                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="newProductErrors.price ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <p x-show="newProductErrors.price" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="newProductErrors.price"></span>
+                            </p>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Tax Percentage (%) <span class="text-red-500">*</span></label>
-                            <input type="number" step="0.01" min="0" max="100" x-model.number="newProduct.tax_percentage" required placeholder="e.g. 8.00" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">GST / Tax Percentage (%) <span class="text-red-500">*</span></label>
+                            <input type="number" step="0.01" min="0" max="100" x-model.number="newProduct.tax_percentage" @input="newProductErrors.tax_percentage = null" required placeholder="e.g. 8.00" 
+                                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="newProductErrors.tax_percentage ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <p x-show="newProductErrors.tax_percentage" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="newProductErrors.tax_percentage"></span>
+                            </p>
                         </div>
                     </div>
 
@@ -623,32 +702,64 @@
                 </div>
 
                 <form @submit.prevent="saveProductUpdate()" class="space-y-4">
+                    <!-- General error banner inside modal -->
+                    <div x-show="editProductErrors.general" class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-2">
+                        <i class="fa-solid fa-circle-exclamation text-red-500"></i>
+                        <span x-text="editProductErrors.general"></span>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Product Name <span class="text-red-500">*</span></label>
-                        <input type="text" x-model="editProduct.name" required placeholder="e.g. Colgate Toothpaste" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="text" x-model="editProduct.name" @input="editProductErrors.name = null" required placeholder="e.g. Colgate Toothpaste" 
+                            class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                            :class="editProductErrors.name ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                        <p x-show="editProductErrors.name" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                            <i class="fa-solid fa-circle-exclamation"></i> <span x-text="editProductErrors.name"></span>
+                        </p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Product Code (SKU) <span class="text-red-500">*</span></label>
-                            <input type="text" x-model="editProduct.code" required placeholder="e.g. TOOTH-001" class="w-full px-3 py-2 text-sm uppercase font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <p class="text-[10px] text-slate-400 mt-0.5">Strict duplicate check enforced</p>
+                            <input type="text" x-model="editProduct.code" @input="editProductErrors.code = null" required placeholder="e.g. TOOTH-001" 
+                                class="w-full px-3 py-2 text-sm uppercase font-mono border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="editProductErrors.code ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <!-- Strict Duplicate Check error message below field -->
+                            <p x-show="editProductErrors.code" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="editProductErrors.code"></span>
+                            </p>
+                            <p x-show="!editProductErrors.code" class="text-[10px] text-slate-400 mt-0.5">Strict duplicate check enforced</p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Stock on Hand <span class="text-red-500">*</span></label>
-                            <input type="number" min="0" x-model.number="editProduct.stock" required placeholder="e.g. 20" class="w-full px-3 py-2 text-sm font-semibold text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <p class="text-[10px] text-indigo-600 mt-0.5">Change to restock or adjust</p>
+                            <input type="number" min="0" x-model.number="editProduct.stock" @input="editProductErrors.stock = null" required placeholder="e.g. 20" 
+                                class="w-full px-3 py-2 text-sm font-semibold text-slate-900 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="editProductErrors.stock ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <p x-show="editProductErrors.stock" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="editProductErrors.stock"></span>
+                            </p>
+                            <p x-show="!editProductErrors.stock" class="text-[10px] text-indigo-600 mt-0.5">Change to restock or adjust</p>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Price per Unit (₹) <span class="text-red-500">*</span></label>
-                            <input type="number" step="0.01" min="0.01" x-model.number="editProduct.price" required placeholder="e.g. 50.00" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <input type="number" step="0.01" min="0.01" x-model.number="editProduct.price" @input="editProductErrors.price = null" required placeholder="e.g. 50.00" 
+                                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="editProductErrors.price ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <p x-show="editProductErrors.price" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="editProductErrors.price"></span>
+                            </p>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">GST / Tax Percentage (%) <span class="text-red-500">*</span></label>
-                            <input type="number" step="0.01" min="0" max="100" x-model.number="editProduct.tax_percentage" required placeholder="e.g. 18.00" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <input type="number" step="0.01" min="0" max="100" x-model.number="editProduct.tax_percentage" @input="editProductErrors.tax_percentage = null" required placeholder="e.g. 18.00" 
+                                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                                :class="editProductErrors.tax_percentage ? 'border-red-500 bg-red-50/20' : 'border-slate-300'">
+                            <p x-show="editProductErrors.tax_percentage" class="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-exclamation"></i> <span x-text="editProductErrors.tax_percentage"></span>
+                            </p>
                         </div>
                     </div>
 
@@ -712,6 +823,29 @@
                 customerHistory: [],
                 isFetchingHistory: false,
                 historySearched: false,
+                toasts: [],
+                orderErrors: {
+                    customer_email: null,
+                    customer_name: null,
+                    items: null,
+                    general: null
+                },
+                newProductErrors: {
+                    name: null,
+                    code: null,
+                    price: null,
+                    tax_percentage: null,
+                    stock: null,
+                    general: null
+                },
+                editProductErrors: {
+                    name: null,
+                    code: null,
+                    price: null,
+                    tax_percentage: null,
+                    stock: null,
+                    general: null
+                },
                 showNewProductModal: false,
                 isSavingProduct: false,
                 newProduct: {
@@ -734,6 +868,30 @@
                     tax_percentage: '',
                     stock: 0,
                     low_stock_threshold: null
+                },
+
+                notify(type, message, title = '') {
+                    const id = Date.now() + Math.random();
+                    const defaultTitles = {
+                        success: 'Success',
+                        error: 'Validation Error',
+                        warning: 'Warning',
+                        info: 'Notice'
+                    };
+                    this.toasts.push({
+                        id,
+                        type,
+                        title: title || defaultTitles[type] || 'Notice',
+                        message,
+                        visible: true
+                    });
+                    setTimeout(() => {
+                        this.removeToast(id);
+                    }, 4500);
+                },
+
+                removeToast(id) {
+                    this.toasts = this.toasts.filter(t => t.id !== id);
                 },
 
                 get filteredCatalog() {
@@ -788,6 +946,7 @@
                         if (data.exists && data.customer) {
                             this.customer.name = data.customer.name;
                             this.customerFound = true;
+                            this.orderErrors.customer_name = null;
                         } else {
                             this.customerFound = false;
                         }
@@ -799,6 +958,7 @@
                 },
 
                 addProductLine() {
+                    this.orderErrors.items = null;
                     this.orderLines.push({
                         product_id: '',
                         code: '',
@@ -818,6 +978,7 @@
                 },
 
                 onProductSelect(line) {
+                    this.orderErrors.items = null;
                     const prod = this.catalog.find(p => p.id === Number(line.product_id));
                     if (prod) {
                         line.code = prod.code;
@@ -892,13 +1053,16 @@
                 },
 
                 async generateBill() {
+                    this.orderErrors = { customer_email: null, customer_name: null, items: null, general: null };
+                    let hasError = false;
+
                     if (!this.customer.email) {
-                        alert('Please enter a customer email.');
-                        return;
+                        this.orderErrors.customer_email = 'Customer email is required to generate bill.';
+                        hasError = true;
                     }
                     if (!this.customer.name) {
-                        alert('Please enter a customer name.');
-                        return;
+                        this.orderErrors.customer_name = 'Customer name is required.';
+                        hasError = true;
                     }
 
                     const validItems = this.orderLines
@@ -909,7 +1073,12 @@
                         }));
 
                     if (validItems.length === 0) {
-                        alert('Please add at least one valid product line.');
+                        this.orderErrors.items = 'Please select at least one product with quantity > 0.';
+                        hasError = true;
+                    }
+
+                    if (hasError) {
+                        this.notify('warning', 'Please review the highlighted fields before proceeding.', 'Incomplete Order');
                         return;
                     }
 
@@ -938,19 +1107,21 @@
 
                         if (!res.ok) {
                             const errMsg = (data && data.message) ? data.message : 'Failed to place order.';
-                            alert(`Error: ${errMsg}`);
+                            this.orderErrors.items = errMsg;
+                            this.notify('error', errMsg, 'Order Creation Failed');
                             return;
                         }
 
                         this.completedOrder = data.data;
                         this.showInvoiceModal = true;
+                        this.notify('success', `Order ${data.data.order_number} recorded & confirmation email queued!`, 'Bill Generated');
 
                         // Refresh catalog & low stock counts
                         await this.loadCatalog();
                         await this.loadLowStock();
 
                     } catch (e) {
-                        alert('A network error occurred while generating bill: ' + (e.message || ''));
+                        this.notify('error', 'Network error connecting to billing service: ' + (e.message || ''), 'Network Error');
                     } finally {
                         this.isSubmitting = false;
                     }
@@ -966,6 +1137,7 @@
                     this.subtotal = 0;
                     this.taxTotal = 0;
                     this.grandTotal = 0;
+                    this.orderErrors = { customer_email: null, customer_name: null, items: null, general: null };
                 },
 
                 async fetchCustomerHistory() {
@@ -986,6 +1158,7 @@
                 },
 
                 openNewProductModal() {
+                    this.newProductErrors = { name: null, code: null, price: null, tax_percentage: null, stock: null, general: null };
                     this.newProduct = {
                         name: '',
                         code: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
@@ -998,6 +1171,8 @@
                 },
 
                 async saveNewProduct() {
+                    this.newProductErrors = { name: null, code: null, price: null, tax_percentage: null, stock: null, general: null };
+
                     const name = (this.newProduct.name || '').trim();
                     const code = (this.newProduct.code || '').trim().toUpperCase();
                     const price = parseFloat(this.newProduct.price);
@@ -1005,8 +1180,14 @@
                     const stock = parseInt(this.newProduct.stock, 10);
                     const threshold = this.newProduct.low_stock_threshold ? parseInt(this.newProduct.low_stock_threshold, 10) : null;
 
-                    if (!name || !code || isNaN(price) || isNaN(tax) || isNaN(stock)) {
-                        alert('Please fill in all required fields (Name, Code, Price, Tax, and Stock) with valid values.');
+                    let hasValidationErr = false;
+                    if (!name) { this.newProductErrors.name = 'Product name is required.'; hasValidationErr = true; }
+                    if (!code) { this.newProductErrors.code = 'Product code (SKU) is required.'; hasValidationErr = true; }
+                    if (isNaN(price) || price <= 0) { this.newProductErrors.price = 'Price must be greater than zero.'; hasValidationErr = true; }
+                    if (isNaN(tax) || tax < 0 || tax > 100) { this.newProductErrors.tax_percentage = 'GST percentage must be between 0 and 100%.'; hasValidationErr = true; }
+                    if (isNaN(stock) || stock < 0) { this.newProductErrors.stock = 'Initial stock cannot be negative.'; hasValidationErr = true; }
+
+                    if (hasValidationErr) {
                         return;
                     }
 
@@ -1033,15 +1214,13 @@
                         const data = await res.json().catch(() => null);
 
                         if (!res.ok) {
-                            let errorMsg = 'Failed to save product.';
                             if (data && data.errors) {
-                                errorMsg = Object.values(data.errors).flat().join('\n');
-                            } else if (data && data.message) {
-                                errorMsg = data.message;
+                                for (const [k, v] of Object.entries(data.errors)) {
+                                    this.newProductErrors[k] = Array.isArray(v) ? v[0] : v;
+                                }
                             } else {
-                                errorMsg = `Server responded with status ${res.status}`;
+                                this.newProductErrors.general = data?.message || `Server responded with status ${res.status}`;
                             }
-                            alert(errorMsg);
                             return;
                         }
 
@@ -1050,19 +1229,20 @@
                         await this.loadLowStock();
 
                         this.showNewProductModal = false;
-                        alert(`Product '${data.data.name}' added to catalog successfully!`);
+                        this.notify('success', `Product '${data.data.name}' (${data.data.code}) added to catalog.`, 'Product Added');
 
                     } catch (e) {
-                        alert('A network error occurred while saving the product: ' + (e.message || ''));
+                        this.newProductErrors.general = 'Network error connecting to API: ' + (e.message || '');
                     } finally {
                         this.isSavingProduct = false;
                     }
                 },
 
                 openEditProductModal(productId) {
+                    this.editProductErrors = { name: null, code: null, price: null, tax_percentage: null, stock: null, general: null };
                     const prod = this.catalog.find(p => p.id === Number(productId));
                     if (!prod) {
-                        alert('Product not found in catalog.');
+                        this.notify('error', 'Selected product was not found in catalog.', 'Not Found');
                         return;
                     }
                     this.editProduct = {
@@ -1078,6 +1258,8 @@
                 },
 
                 async saveProductUpdate() {
+                    this.editProductErrors = { name: null, code: null, price: null, tax_percentage: null, stock: null, general: null };
+
                     const name = (this.editProduct.name || '').trim();
                     const code = (this.editProduct.code || '').trim().toUpperCase();
                     const price = parseFloat(this.editProduct.price);
@@ -1087,8 +1269,14 @@
                         ? parseInt(this.editProduct.low_stock_threshold, 10) 
                         : null;
 
-                    if (!name || !code || isNaN(price) || isNaN(tax) || isNaN(stock)) {
-                        alert('Please fill in all required fields (Name, Code, Price, GST/Tax, and Stock) with valid values.');
+                    let hasValidationErr = false;
+                    if (!name) { this.editProductErrors.name = 'Product name is required.'; hasValidationErr = true; }
+                    if (!code) { this.editProductErrors.code = 'Product code (SKU) is required.'; hasValidationErr = true; }
+                    if (isNaN(price) || price <= 0) { this.editProductErrors.price = 'Price must be greater than zero.'; hasValidationErr = true; }
+                    if (isNaN(tax) || tax < 0 || tax > 100) { this.editProductErrors.tax_percentage = 'GST percentage must be between 0 and 100%.'; hasValidationErr = true; }
+                    if (isNaN(stock) || stock < 0) { this.editProductErrors.stock = 'Stock on hand cannot be negative.'; hasValidationErr = true; }
+
+                    if (hasValidationErr) {
                         return;
                     }
 
@@ -1115,15 +1303,13 @@
                         const data = await res.json().catch(() => null);
 
                         if (!res.ok) {
-                            let errorMsg = 'Failed to update product.';
                             if (data && data.errors) {
-                                errorMsg = Object.values(data.errors).flat().join('\n');
-                            } else if (data && data.message) {
-                                errorMsg = data.message;
+                                for (const [k, v] of Object.entries(data.errors)) {
+                                    this.editProductErrors[k] = Array.isArray(v) ? v[0] : v;
+                                }
                             } else {
-                                errorMsg = `Server responded with HTTP status ${res.status}`;
+                                this.editProductErrors.general = data?.message || `Server responded with HTTP status ${res.status}`;
                             }
-                            alert(`Duplicate check / Validation error:\n${errorMsg}`);
                             return;
                         }
 
@@ -1142,11 +1328,12 @@
                         });
                         this.recalculateTotals();
 
+                        // Close modal and surface sleek toast notification
                         this.showEditProductModal = false;
-                        alert(`Product '${data.data.name}' updated successfully!\nStock: ${data.data.stock} | Price: ₹${data.data.price} | GST: ${data.data.tax_percentage}%`);
+                        this.notify('success', `Product '${data.data.name}' updated! Stock: ${data.data.stock} | Price: ₹${Number(data.data.price).toFixed(2)} | GST: ${data.data.tax_percentage}%`, 'Catalog Updated');
 
                     } catch (e) {
-                        alert('Network error while updating product: ' + (e.message || ''));
+                        this.editProductErrors.general = 'Network error while updating product: ' + (e.message || '');
                     } finally {
                         this.isUpdatingProduct = false;
                     }
