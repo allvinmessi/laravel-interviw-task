@@ -523,6 +523,16 @@
 
     <!-- Application Script -->
     <script>
+        const API_BASE = "{{ url('api') }}";
+        function getApiUrl(endpoint) {
+            const clean = endpoint.replace(/^\/+/, '');
+            if (API_BASE && API_BASE.startsWith('http')) {
+                return `${API_BASE}/${clean}`;
+            }
+            const base = window.location.pathname.replace(/\/index\.php\/?$/, '').replace(/\/+$/, '');
+            return `${window.location.origin}${base}/api/${clean}`;
+        }
+
         function billingSystem() {
             return {
                 catalog: [],
@@ -570,7 +580,7 @@
 
                 async loadCatalog() {
                     try {
-                        const res = await fetch('/api/products');
+                        const res = await fetch(getApiUrl('products'));
                         const json = await res.json();
                         this.catalog = json.data || [];
                     } catch (e) {
@@ -581,7 +591,7 @@
                 async loadLowStock() {
                     this.isRefreshingLowStock = true;
                     try {
-                        const res = await fetch('/api/products/low-stock');
+                        const res = await fetch(getApiUrl('products/low-stock'));
                         const json = await res.json();
                         this.lowStockItems = json.products || [];
                         this.lowStockThreshold = json.effective_threshold || 5;
@@ -601,7 +611,7 @@
 
                     this.isLookingUp = true;
                     try {
-                        const res = await fetch(`/api/customers/lookup?email=${encodeURIComponent(email)}`);
+                        const res = await fetch(getApiUrl(`customers/lookup?email=${encodeURIComponent(email)}`));
                         const data = await res.json();
                         if (data.exists && data.customer) {
                             this.customer.name = data.customer.name;
@@ -743,7 +753,7 @@
                             amount_given: this.amountGiven ? Number(this.amountGiven) : null
                         };
 
-                        const res = await fetch('/api/orders', {
+                        const res = await fetch(getApiUrl('orders'), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -752,10 +762,10 @@
                             body: JSON.stringify(payload)
                         });
 
-                        const data = await res.json();
+                        const data = await res.json().catch(() => null);
 
                         if (!res.ok) {
-                            const errMsg = data.message || 'Failed to place order.';
+                            const errMsg = (data && data.message) ? data.message : 'Failed to place order.';
                             alert(`Error: ${errMsg}`);
                             return;
                         }
@@ -768,7 +778,7 @@
                         await this.loadLowStock();
 
                     } catch (e) {
-                        alert('A network error occurred while generating bill.');
+                        alert('A network error occurred while generating bill: ' + (e.message || ''));
                     } finally {
                         this.isSubmitting = false;
                     }
@@ -793,9 +803,9 @@
                     this.isFetchingHistory = true;
                     this.historySearched = true;
                     try {
-                        const res = await fetch(`/api/customers/${encodeURIComponent(email)}/orders`);
-                        const json = await res.json();
-                        this.customerHistory = json.orders || [];
+                        const res = await fetch(getApiUrl(`customers/${encodeURIComponent(email)}/orders`));
+                        const json = await res.json().catch(() => null);
+                        this.customerHistory = (json && json.orders) ? json.orders : [];
                     } catch (e) {
                         this.customerHistory = [];
                     } finally {
@@ -816,22 +826,50 @@
                 },
 
                 async saveNewProduct() {
+                    const name = (this.newProduct.name || '').trim();
+                    const code = (this.newProduct.code || '').trim().toUpperCase();
+                    const price = parseFloat(this.newProduct.price);
+                    const tax = parseFloat(this.newProduct.tax_percentage);
+                    const stock = parseInt(this.newProduct.stock, 10);
+                    const threshold = this.newProduct.low_stock_threshold ? parseInt(this.newProduct.low_stock_threshold, 10) : null;
+
+                    if (!name || !code || isNaN(price) || isNaN(tax) || isNaN(stock)) {
+                        alert('Please fill in all required fields (Name, Code, Price, Tax, and Stock) with valid values.');
+                        return;
+                    }
+
                     this.isSavingProduct = true;
                     try {
-                        const res = await fetch('/api/products', {
+                        const payload = {
+                            name: name,
+                            code: code,
+                            price: price,
+                            tax_percentage: tax,
+                            stock: stock,
+                            low_stock_threshold: threshold
+                        };
+
+                        const res = await fetch(getApiUrl('products'), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Accept': 'application/json'
                             },
-                            body: JSON.stringify(this.newProduct)
+                            body: JSON.stringify(payload)
                         });
 
-                        const data = await res.json();
+                        const data = await res.json().catch(() => null);
 
                         if (!res.ok) {
-                            const errors = data.errors ? Object.values(data.errors).flat().join('\n') : data.message;
-                            alert(`Failed to save product:\n${errors}`);
+                            let errorMsg = 'Failed to save product.';
+                            if (data && data.errors) {
+                                errorMsg = Object.values(data.errors).flat().join('\n');
+                            } else if (data && data.message) {
+                                errorMsg = data.message;
+                            } else {
+                                errorMsg = `Server responded with status ${res.status}`;
+                            }
+                            alert(errorMsg);
                             return;
                         }
 
@@ -843,7 +881,7 @@
                         alert(`Product '${data.data.name}' added to catalog successfully!`);
 
                     } catch (e) {
-                        alert('A network error occurred while saving the product.');
+                        alert('A network error occurred while saving the product: ' + (e.message || ''));
                     } finally {
                         this.isSavingProduct = false;
                     }
