@@ -292,7 +292,43 @@ php artisan queue:work
 
 ---
 
-### 4. Customer Lookup (POS Auto-fill)
+### 4. Create a Product
+- **Endpoint**: `POST /api/products`
+- **Headers**: `Content-Type: application/json`, `Accept: application/json`
+- **Payload**:
+```json
+{
+  "name": "Tata Salt 1kg",
+  "code": "SALT-001",
+  "price": 28.00,
+  "tax_percentage": 5.00,
+  "stock": 50,
+  "low_stock_threshold": 10
+}
+```
+- **Response (201 Created)**: Returns the newly created product resource.
+
+---
+
+### 5. Update a Product (with Duplicate SKU Protection)
+- **Endpoint**: `PUT /api/products/{id}`
+- **Headers**: `Content-Type: application/json`, `Accept: application/json`
+- **Payload**:
+```json
+{
+  "name": "Colgate Toothpaste (150g)",
+  "code": "TOOTH-001",
+  "price": 55.00,
+  "tax_percentage": 12.00,
+  "stock": 40,
+  "low_stock_threshold": 8
+}
+```
+- **Duplicate SKU Check**: Enforced via `Rule::unique('products', 'code')->ignore($productId)`. Rejects collisions with an existing code from any other product with `422 Unprocessable Entity`.
+
+---
+
+### 6. Customer Lookup (POS Auto-fill)
 - **Endpoint**: `GET /api/customers/lookup?email=thomas@example.com`
 - **Response**: `{ "exists": true, "customer": { "id": 1, "name": "Thomas Alva", "email": "thomas@example.com" } }`
 
@@ -367,7 +403,7 @@ The project features a comprehensive test suite written in PHPUnit, executing on
 php artisan test
 ```
 
-### Coverage Summary (17 Passed Tests, 109 Assertions):
+### Coverage Summary (23 Passed Tests, 140 Assertions):
 1. **Order Creation Happy Path**: Validates line subtotals, tax calculation, stock deduction, order item recording, and queued email dispatching.
 2. **Edge Case - Insufficient Stock**: Confirms clean `422` failure, validates stock remains untouched, no order created, and no email queued.
 3. **Edge Case - Concurrency & Overselling**: Simulates two orders arriving for `stock = 1`; verifies exactly one succeeds and one fails cleanly, ensuring final stock never goes negative.
@@ -376,6 +412,8 @@ php artisan test
 6. **Validation Edge Cases**: Rejects empty items, missing email, zero/negative quantity, and nonexistent product IDs.
 7. **Customer Order History**: Validates retrieval via route parameter, query parameter, 404 for unknown email, and 422 for malformed email.
 8. **Low-Stock Alerts**: Validates default threshold, query parameter overrides, and per-product threshold overrides.
+9. **Product Creation**: Validates creation of catalog items and enforces code uniqueness and required fields.
+10. **Product Update & Duplicate Protection**: Validates updating stock, price, and GST, confirms updating a product with its own code is permitted, and asserts changing code to another product's code is rejected with `422`.
 
 ---
 
