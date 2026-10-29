@@ -12,9 +12,8 @@
     <style>
         [x-cloak] { display: none !important; }
         @media print {
-            body * { visibility: hidden; }
-            #printable-receipt, #printable-receipt * { visibility: visible; }
-            #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; }
+            @page { size: auto; margin: 5mm; }
+            body { background: #fff !important; color: #000 !important; }
         }
     </style>
 </head>
@@ -452,7 +451,7 @@
 
                 <!-- Modal Actions -->
                 <div class="bg-slate-50 px-6 py-4 flex gap-3 border-t border-slate-100">
-                    <button @click="window.print()" class="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg transition flex items-center justify-center gap-1.5">
+                    <button @click="printReceipt()" class="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg transition flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-print"></i> Print Receipt
                     </button>
                     <button @click="resetForm(); showInvoiceModal = false;" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition flex items-center justify-center gap-1.5">
@@ -1337,6 +1336,152 @@
                     } finally {
                         this.isUpdatingProduct = false;
                     }
+                },
+
+                printReceipt() {
+                    if (!this.completedOrder) {
+                        this.notify('warning', 'No completed order available to print.', 'Notice');
+                        return;
+                    }
+
+                    let iframe = document.getElementById('receipt-print-frame');
+                    if (!iframe) {
+                        iframe = document.createElement('iframe');
+                        iframe.id = 'receipt-print-frame';
+                        iframe.style.position = 'fixed';
+                        iframe.style.right = '0';
+                        iframe.style.bottom = '0';
+                        iframe.style.width = '0';
+                        iframe.style.height = '0';
+                        iframe.style.border = '0';
+                        document.body.appendChild(iframe);
+                    }
+
+                    const o = this.completedOrder;
+                    const itemsHtml = (o.items || []).map(item => `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 7px; font-size: 12px; border-bottom: 1px dotted #e2e8f0; padding-bottom: 4px;">
+                            <div style="text-align: left; padding-right: 10px;">
+                                <div style="font-weight: 700; color: #111;">${item.product_name}</div>
+                                <div style="font-size: 10px; color: #555; margin-top: 1px;">${item.quantity} x ₹${Number(item.unit_price).toFixed(2)} <span style="color: #999;">|</span> Tax: ${item.tax_percentage}%</div>
+                            </div>
+                            <div style="font-weight: 700; text-align: right; white-space: nowrap; color: #111;">₹${Number(item.total).toFixed(2)}</div>
+                        </div>
+                    `).join('');
+
+                    const paymentDetails = (o.amount_given !== null && o.amount_given !== undefined) ? `
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; color: #444;">
+                            <span>Cash Tendered:</span>
+                            <span style="font-weight: 600;">₹${Number(o.amount_given).toFixed(2)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px; font-weight: bold; color: #047857;">
+                            <span>Change Returned:</span>
+                            <span>₹${Number(o.change_returned || 0).toFixed(2)}</span>
+                        </div>
+                    ` : '';
+
+                    const receiptHtml = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="utf-8">
+                            <title>Receipt - ${o.order_number}</title>
+                            <style>
+                                @page { size: auto; margin: 8mm 6mm; }
+                                html, body {
+                                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                                    font-size: 12px;
+                                    line-height: 1.4;
+                                    color: #111;
+                                    background: #fff;
+                                    margin: 0;
+                                    padding: 4px;
+                                }
+                                .receipt-container {
+                                    width: 100%;
+                                    max-width: 320px;
+                                    margin: 0 auto;
+                                    background: #fff;
+                                }
+                                .text-center { text-align: center; }
+                                .text-right { text-align: right; }
+                                .dashed-line {
+                                    border-bottom: 1px dashed #718096;
+                                    margin: 10px 0;
+                                }
+                                .bold { font-weight: 700; }
+                                .row {
+                                    display: flex;
+                                    justify-content: space-between;
+                                    margin-bottom: 4px;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="receipt-container">
+                                <div class="text-center" style="margin-bottom: 6px;">
+                                    <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.5px; color: #0f172a;">MALLOW RETAIL STORE</div>
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Retail Counter Order & Tax Invoice</div>
+                                    <div style="font-family: monospace; font-weight: bold; color: #4338ca; font-size: 13px; margin-top: 6px;">${o.order_number}</div>
+                                    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${o.created_at ? new Date(o.created_at).toLocaleString() : new Date().toLocaleString()}</div>
+                                </div>
+
+                                <div class="dashed-line"></div>
+
+                                <div style="font-size: 11px; margin-bottom: 6px;">
+                                    <div class="row">
+                                        <span style="color: #64748b;">Customer:</span>
+                                        <span class="bold" style="color: #0f172a;">${o.customer?.name || 'Customer'}</span>
+                                    </div>
+                                    <div class="row" style="color: #64748b; font-size: 10px;">
+                                        <span>Email:</span>
+                                        <span style="font-family: monospace;">${o.customer?.email || '-'}</span>
+                                    </div>
+                                </div>
+
+                                <div class="dashed-line"></div>
+
+                                <div style="margin-bottom: 8px;">
+                                    ${itemsHtml}
+                                </div>
+
+                                <div class="dashed-line"></div>
+
+                                <div style="margin-bottom: 8px; font-size: 12px;">
+                                    <div class="row" style="color: #475569;">
+                                        <span>Subtotal:</span>
+                                        <span style="font-family: monospace;">₹${Number(o.subtotal).toFixed(2)}</span>
+                                    </div>
+                                    <div class="row" style="color: #475569;">
+                                        <span>Tax Amount:</span>
+                                        <span style="font-family: monospace;">₹${Number(o.tax_amount).toFixed(2)}</span>
+                                    </div>
+                                    <div class="row" style="font-size: 14px; font-weight: 800; color: #0f172a; border-top: 1px solid #cbd5e1; padding-top: 6px; margin-top: 6px;">
+                                        <span>Grand Total:</span>
+                                        <span style="font-family: monospace; color: #4338ca;">₹${Number(o.grand_total).toFixed(2)}</span>
+                                    </div>
+                                    ${paymentDetails}
+                                </div>
+
+                                <div class="dashed-line"></div>
+
+                                <div class="text-center" style="font-size: 10px; color: #64748b; margin-top: 10px; padding-top: 4px;">
+                                    <div style="font-weight: 700; color: #059669; margin-bottom: 2px;">✓ Order Confirmation Queued</div>
+                                    <div>Thank you for shopping with us!</div>
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+
+                    const doc = iframe.contentWindow.document;
+                    doc.open();
+                    doc.write(receiptHtml);
+                    doc.close();
+
+                    setTimeout(() => {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    }, 250);
                 }
             };
         }
