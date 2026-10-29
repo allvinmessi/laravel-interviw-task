@@ -443,6 +443,3 @@ The interface strictly reflects the wireframe provided in Page 2 of the PDF:
 5. **Simulated Email**: In accordance with Requirement 5, email dispatch is logged with full structured payload to `storage/logs/laravel.log` via the queued job.
 
 ---
-
-## 11. Prompt Log
-Full AI prompt log and developer instructions are preserved in `/prompts/prompt_log.md`.
